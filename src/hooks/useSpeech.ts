@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { SpeechRateMode } from '../utils/storage'
+import {
+  cancelSpeech,
+  isSpeechSynthesisSupported,
+  SPEECH_FALLBACK_MESSAGE,
+  speakEnglish,
+  speakEnglishSequence,
+  subscribeVoicesChanged,
+  type SpeechSpeed,
+} from '../utils/speech'
 
 interface SpeechRecognitionEventLike {
   results: ArrayLike<ArrayLike<{ transcript: string }>>
@@ -32,45 +40,61 @@ function getSpeechRecognitionCtor(): SpeechRecognitionConstructor | null {
   return win.SpeechRecognition ?? win.webkitSpeechRecognition ?? null
 }
 
-export function useSpeech(rateMode: SpeechRateMode) {
-  const [speakingText, setSpeakingText] = useState<string | null>(null)
+export function useSpeech(defaultRateMode: SpeechSpeed) {
+  const [activeAudioId, setActiveAudioId] = useState<string | null>(null)
   const [listening, setListening] = useState(false)
   const [transcript, setTranscript] = useState('')
   const [speechNotice, setSpeechNotice] = useState('')
-  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null)
-  const preferredVoiceRef = useRef<SpeechSynthesisVoice | null>(null)
+  const [fallbackNotice, setFallbackNotice] = useState<string>(() =>
+    isSpeechSynthesisSupported() ? '' : SPEECH_FALLBACK_MESSAGE
+  )
+  const [voicesChecked, setVoicesChecked] = useState(false)
+  const [hasEnglishVoice, setHasEnglishVoice] = useState(true)
 
-  const ttsSupported =
-    typeof window !== 'undefined' && 'speechSynthesis' in window
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null)
+
+  const ttsSupported = isSpeechSynthesisSupported()
   const micSupported = getSpeechRecognitionCtor() !== null
 
   useEffect(() => {
-    if (!ttsSupported) return
-
-    const pickVoice = () => {
-      const voices = window.speechSynthesis.getVoices()
-      if (!voices.length) return
-      const enUs =
-        voices.find(
-          (v) => v.lang.toLowerCase() === 'en-us' && v.localService
-        ) ||
-        voices.find((v) => v.lang.toLowerCase().startsWith('en-us')) ||
-        voices.find((v) => v.lang.toLowerCase().startsWith('en'))
-      preferredVoiceRef.current = enUs ?? null
+    if (!ttsSupported) {
+      setHasEnglishVoice(false)
+      setVoicesChecked(true)
+      setFallbackNotice(SPEECH_FALLBACK_MESSAGE)
+      return
     }
 
-    pickVoice()
-    window.speechSynthesis.addEventListener?.('voiceschanged', pickVoice)
+    let timeoutId: number | undefined
+
+    const unsubscribe = subscribeVoicesChanged((voices, hasEnglish) => {
+      if (voices.length > 0) {
+        setVoicesChecked(true)
+        setHasEnglishVoice(hasEnglish)
+        setFallbackNotice(hasEnglish ? '' : SPEECH_FALLBACK_MESSAGE)
+      }
+    })
+
+    // Give Chrome/Android async voice loading a brief window before checking empty voices
+    timeoutId = window.setTimeout(() => {
+      const voices = window.speechSynthesis.getVoices()
+      const hasEnglish = voices.some((v) =>
+        v.lang.toLowerCase().startsWith('en')
+      )
+      setVoicesChecked(true)
+      if (voices.length === 0 || !hasEnglish) {
+        setHasEnglishVoice(false)
+        setFallbackNotice(SPEECH_FALLBACK_MESSAGE)
+      }
+    }, 900)
 
     return () => {
-      window.speechSynthesis.removeEventListener?.('voiceschanged', pickVoice)
+      if (timeoutId !== undefined) window.clearTimeout(timeoutId)
+      unsubscribe()
     }
   }, [ttsSupported])
 
   const stopAll = useCallback(() => {
-    if (ttsSupported) {
-      window.speechSynthesis.cancel()
-    }
+    cancelSpeech()
     if (recognitionRef.current) {
       try {
         recognitionRef.current.abort()
@@ -79,9 +103,9 @@ export function useSpeech(rateMode: SpeechRateMode) {
       }
       recognitionRef.current = null
     }
-    setSpeakingText(null)
+    setActiveAudioId(null)
     setListening(false)
-  }, [ttsSupported])
+  }, [])
 
   useEffect(() => {
     return () => {
@@ -95,65 +119,57 @@ export function useSpeech(rateMode: SpeechRateMode) {
   }, [])
 
   const speak = useCallback(
-    (text: string, onComplete?: () => void) => {
+    (text: string, overrideRate?: SpeechSpeed, activeId?: string) => {
+      const rateMode = overrideRate ?? defaultRateMode
+      const resolvedId = activeId ?? `${text}::${rateMode}`
+
       if (!ttsSupported) {
-        setSpeechNotice(
-          'Trình duyệt này chưa hỗ trợ phát âm tự động. Phụ huynh hãy đọc mẫu cùng bé nhé.'
-        )
+        setFallbackNotice(SPEECH_FALLBACK_MESSAGE)
         return
       }
 
-      window.speechSynthesis.cancel()
-      const utterance = new SpeechSynthesisUtterance(text)
-      utterance.lang = 'en-US'
-      utterance.rate = rateMode === 'slow' ? 0.68 : 0.88
-      utterance.pitch = 1.02
-      if (preferredVoiceRef.current) {
-        utterance.voice = preferredVoiceRef.current
-      }
-
-      utterance.onstart = () => setSpeakingText(text)
-      utterance.onend = () => {
-        setSpeakingText(null)
-        onComplete?.()
-      }
-      utterance.onerror = () => {
-        setSpeakingText(null)
-      }
-
-      window.speechSynthesis.speak(utterance)
+      speakEnglish(text, {
+        rateMode,
+        activeId: resolvedId,
+        onStart: (id) => {
+          setActiveAudioId(id)
+          setFallbackNotice('')
+        },
+        onEnd: () => {
+          setActiveAudioId((prev) => (prev === resolvedId ? null : prev))
+        },
+        onFallback: (msg) => {
+          setFallbackNotice(msg)
+        },
+      })
     },
-    [rateMode, ttsSupported]
+    [defaultRateMode, ttsSupported]
   )
 
   const speakSequence = useCallback(
-    (items: string[]) => {
-      if (!ttsSupported || items.length === 0) return
-      window.speechSynthesis.cancel()
-
-      let idx = 0
-      const playNext = () => {
-        if (idx >= items.length) {
-          setSpeakingText(null)
-          return
-        }
-        const current = items[idx]
-        idx += 1
-        const utterance = new SpeechSynthesisUtterance(current)
-        utterance.lang = 'en-US'
-        utterance.rate = rateMode === 'slow' ? 0.68 : 0.88
-        if (preferredVoiceRef.current) {
-          utterance.voice = preferredVoiceRef.current
-        }
-        utterance.onstart = () => setSpeakingText(current)
-        utterance.onend = () => playNext()
-        utterance.onerror = () => setSpeakingText(null)
-        window.speechSynthesis.speak(utterance)
+    (items: string[], overrideRate?: SpeechSpeed, activeId = 'story-sequence') => {
+      const rateMode = overrideRate ?? defaultRateMode
+      if (!ttsSupported) {
+        setFallbackNotice(SPEECH_FALLBACK_MESSAGE)
+        return
       }
 
-      playNext()
+      speakEnglishSequence(items, {
+        rateMode,
+        activeId,
+        onStart: (id) => {
+          setActiveAudioId(id)
+          setFallbackNotice('')
+        },
+        onEnd: () => {
+          setActiveAudioId((prev) => (prev === activeId ? null : prev))
+        },
+        onFallback: (msg) => {
+          setFallbackNotice(msg)
+        },
+      })
     },
-    [rateMode, ttsSupported]
+    [defaultRateMode, ttsSupported]
   )
 
   const startMic = useCallback(() => {
@@ -176,10 +192,8 @@ export function useSpeech(rateMode: SpeechRateMode) {
       return
     }
 
-    if (ttsSupported) {
-      window.speechSynthesis.cancel()
-      setSpeakingText(null)
-    }
+    cancelSpeech()
+    setActiveAudioId(null)
 
     const recognition = new Ctor()
     recognition.lang = 'en-US'
@@ -229,13 +243,16 @@ export function useSpeech(rateMode: SpeechRateMode) {
       setListening(false)
       recognitionRef.current = null
     }
-  }, [listening, ttsSupported])
+  }, [listening])
 
   return {
-    speakingText,
+    activeAudioId,
     listening,
     transcript,
     speechNotice,
+    fallbackNotice,
+    voicesChecked,
+    hasEnglishVoice,
     ttsSupported,
     micSupported,
     speak,
@@ -243,6 +260,6 @@ export function useSpeech(rateMode: SpeechRateMode) {
     startMic,
     stopAll,
     resetTranscript,
-    setSpeechNotice,
+    dismissFallbackNotice: () => setFallbackNotice(''),
   }
 }

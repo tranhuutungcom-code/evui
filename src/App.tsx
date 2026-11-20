@@ -8,6 +8,7 @@ import { ProgramPage } from './components/ProgramPage'
 import { curriculumRepository } from './repositories/curriculumRepository'
 import type { LevelId } from './types/curriculum'
 import { buildHashPath, parseHashRoute, type RouteState } from './utils/router'
+import { cancelSpeech } from './utils/speech'
 import {
   clearLocalProgress,
   loadLocalProgress,
@@ -51,6 +52,7 @@ export default function App() {
 
   useEffect(() => {
     const handleHashChange = () => {
+      cancelSpeech()
       const next = parseHashRoute(window.location.hash)
       setRoute(next)
       setMobileMenuOpen(false)
@@ -64,10 +66,14 @@ export default function App() {
     }
 
     window.addEventListener('hashchange', handleHashChange)
-    return () => window.removeEventListener('hashchange', handleHashChange)
+    return () => {
+      cancelSpeech()
+      window.removeEventListener('hashchange', handleHashChange)
+    }
   }, [])
 
   const navigate = useCallback((nextRoute: RouteState) => {
+    cancelSpeech()
     const nextHash = buildHashPath(nextRoute)
     setMobileMenuOpen(false)
 

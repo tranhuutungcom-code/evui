@@ -8,6 +8,8 @@ import {
   Mic,
   MicOff,
   Volume2,
+  VolumeX,
+  X,
 } from 'lucide-react'
 import { useSpeech } from '../hooks/useSpeech'
 import type { Lesson, LessonLocation, Level, Unit } from '../types/curriculum'
@@ -28,6 +30,16 @@ interface LessonPageProps {
   onNavigate: (route: RouteState) => void
 }
 
+function Soundwave() {
+  return (
+    <span className="soundwave" aria-hidden="true">
+      <i />
+      <i />
+      <i />
+    </span>
+  )
+}
+
 export function LessonPage({
   level,
   unit,
@@ -42,16 +54,18 @@ export function LessonPage({
 }: LessonPageProps) {
   const [completionBanner, setCompletionBanner] = useState('')
   const {
-    speakingText,
+    activeAudioId,
     listening,
     transcript,
     speechNotice,
+    fallbackNotice,
     micSupported,
     speak,
     speakSequence,
     startMic,
     stopAll,
     resetTranscript,
+    dismissFallbackNotice,
   } = useSpeech(speechRate)
 
   useEffect(() => {
@@ -142,7 +156,7 @@ export function LessonPage({
             <div
               className="speed-toggle"
               role="group"
-              aria-label="Chọn tốc độ đọc mẫu"
+              aria-label="Tốc độ mặc định cho trò chơi nghe"
             >
               <Gauge size={15} aria-hidden="true" />
               <button
@@ -151,7 +165,7 @@ export function LessonPage({
                 aria-pressed={speechRate === 'normal'}
                 onClick={() => onChangeSpeechRate('normal')}
               >
-                Nghe chuẩn
+                Mặc định: Chuẩn
               </button>
               <button
                 type="button"
@@ -159,36 +173,93 @@ export function LessonPage({
                 aria-pressed={speechRate === 'slow'}
                 onClick={() => onChangeSpeechRate('slow')}
               >
-                Nghe chậm
+                🐢 Mặc định: Chậm
               </button>
             </div>
           </div>
 
           <p className="muted">
-            Chạm vào từng thẻ để nghe phát âm mẫu. Khuyến khích bé nói theo tự
-            nhiên, không tạo áp lực phải phát âm hoàn hảo.
+            Chạm nút <strong>Nghe</strong> để nghe giọng đọc chuẩn, hoặc{' '}
+            <strong>🐢 Chậm</strong> để bé 3–5 tuổi nghe rõ từng âm tiết. Khuyến
+            khích bé nhắc lại tự nhiên, không tạo áp lực phải phát âm hoàn hảo.
           </p>
+
+          {fallbackNotice && (
+            <div className="speech-fallback-banner" role="status">
+              <VolumeX size={18} aria-hidden="true" />
+              <span>{fallbackNotice}</span>
+              <button
+                type="button"
+                className="fallback-dismiss-btn"
+                aria-label="Đóng thông báo âm thanh"
+                onClick={dismissFallbackNotice}
+              >
+                <X size={15} aria-hidden="true" />
+              </button>
+            </div>
+          )}
 
           <div className="word-grid">
             {lesson.words.map((item) => {
-              const isPlaying = speakingText === item.word
+              const normalId = `word-normal-${lesson.id}-${item.word}`
+              const slowId = `word-slow-${lesson.id}-${item.word}`
+              const isNormalPlaying = activeAudioId === normalId
+              const isSlowPlaying = activeAudioId === slowId
+              const isAnyPlaying = isNormalPlaying || isSlowPlaying
+
               return (
-                <button
-                  type="button"
-                  className={`word-card ${isPlaying ? 'is-speaking' : ''}`}
+                <div
+                  className={`word-card ${isAnyPlaying ? 'is-speaking' : ''}`}
                   key={item.word}
-                  onClick={() => speak(item.word)}
                 >
-                  <span className="word-emoji" aria-hidden="true">
-                    {item.emoji}
-                  </span>
-                  <b lang="en">{item.word}</b>
-                  <span className="word-vi">{item.meaningVi}</span>
-                  <span className="word-audio-hint">
-                    <Volume2 size={15} aria-hidden="true" />
-                    <span>{isPlaying ? 'Đang đọc…' : 'Nghe'}</span>
-                  </span>
-                </button>
+                  <button
+                    type="button"
+                    lang="en"
+                    aria-label={`Listen to ${item.word}`}
+                    className="word-card-face"
+                    onClick={() => speak(item.word, 'normal', normalId)}
+                  >
+                    <span className="word-emoji" aria-hidden="true">
+                      {item.emoji}
+                    </span>
+                    <b lang="en">{item.word}</b>
+                    <span className="word-vi" lang="vi">
+                      {item.meaningVi}
+                    </span>
+                  </button>
+
+                  <div className="word-card-controls">
+                    <button
+                      type="button"
+                      lang="en"
+                      aria-label={`Listen to ${item.word}`}
+                      className={`audio-pill-btn ${
+                        isNormalPlaying ? 'is-speaking' : ''
+                      }`}
+                      onClick={() => speak(item.word, 'normal', normalId)}
+                    >
+                      <Volume2 size={15} aria-hidden="true" />
+                      <span lang="vi">
+                        {isNormalPlaying ? 'Đang đọc' : 'Nghe'}
+                      </span>
+                      {isNormalPlaying && <Soundwave />}
+                    </button>
+
+                    <button
+                      type="button"
+                      lang="en"
+                      aria-label={`Listen slowly to ${item.word}`}
+                      className={`audio-pill-btn slow ${
+                        isSlowPlaying ? 'is-speaking' : ''
+                      }`}
+                      onClick={() => speak(item.word, 'slow', slowId)}
+                    >
+                      <span aria-hidden="true">🐢</span>
+                      <span lang="vi">Chậm</span>
+                      {isSlowPlaying && <Soundwave />}
+                    </button>
+                  </div>
+                </div>
               )
             })}
           </div>
@@ -196,21 +267,61 @@ export function LessonPage({
           <div className="phrase-box">
             <h3>Mẫu câu giao tiếp trong bài</h3>
             <div className="phrase-list">
-              {lesson.phrases.map((phrase) => {
-                const isPlaying = speakingText === phrase.en
+              {lesson.phrases.map((phrase, index) => {
+                const normalId = `phrase-normal-${lesson.id}-${index}`
+                const slowId = `phrase-slow-${lesson.id}-${index}`
+                const isNormalPlaying = activeAudioId === normalId
+                const isSlowPlaying = activeAudioId === slowId
+                const isAnyPlaying = isNormalPlaying || isSlowPlaying
+
                 return (
-                  <button
-                    type="button"
+                  <div
                     key={phrase.en}
-                    className={`phrase-btn ${isPlaying ? 'is-speaking' : ''}`}
-                    onClick={() => speak(phrase.en)}
+                    className={`phrase-row ${isAnyPlaying ? 'is-speaking' : ''}`}
                   >
-                    <Volume2 size={17} aria-hidden="true" />
-                    <span className="phrase-texts">
+                    <button
+                      type="button"
+                      lang="en"
+                      aria-label={`Listen to ${phrase.en}`}
+                      className="phrase-text-btn"
+                      onClick={() => speak(phrase.en, 'normal', normalId)}
+                    >
                       <strong lang="en">{phrase.en}</strong>
-                      <small>{phrase.vi}</small>
-                    </span>
-                  </button>
+                      <small lang="vi">{phrase.vi}</small>
+                    </button>
+
+                    <div className="phrase-controls">
+                      <button
+                        type="button"
+                        lang="en"
+                        aria-label={`Listen to ${phrase.en}`}
+                        className={`audio-pill-btn ${
+                          isNormalPlaying ? 'is-speaking' : ''
+                        }`}
+                        onClick={() => speak(phrase.en, 'normal', normalId)}
+                      >
+                        <Volume2 size={15} aria-hidden="true" />
+                        <span lang="vi">
+                          {isNormalPlaying ? 'Đang đọc' : 'Nghe'}
+                        </span>
+                        {isNormalPlaying && <Soundwave />}
+                      </button>
+
+                      <button
+                        type="button"
+                        lang="en"
+                        aria-label={`Listen slowly to ${phrase.en}`}
+                        className={`audio-pill-btn slow ${
+                          isSlowPlaying ? 'is-speaking' : ''
+                        }`}
+                        onClick={() => speak(phrase.en, 'slow', slowId)}
+                      >
+                        <span aria-hidden="true">🐢</span>
+                        <span lang="vi">Chậm</span>
+                        {isSlowPlaying && <Soundwave />}
+                      </button>
+                    </div>
+                  </div>
                 )
               })}
             </div>
@@ -219,8 +330,9 @@ export function LessonPage({
           <LessonActivity
             lessonId={lesson.id}
             config={lesson.activityConfig}
-            onSpeak={(text) => speak(text)}
-            onSpeakSequence={(items) => speakSequence(items)}
+            activeAudioId={activeAudioId}
+            onSpeak={speak}
+            onSpeakSequence={speakSequence}
           />
 
           <div className="practice-box">

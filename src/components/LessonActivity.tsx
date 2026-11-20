@@ -1,18 +1,23 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CheckCircle2, RotateCcw, Sparkles, Volume2 } from 'lucide-react'
 import type { ActivityConfig, StoryStep } from '../types/curriculum'
+import type { SpeechSpeed } from '../utils/speech'
 
 interface LessonActivityProps {
   lessonId: string
   config: ActivityConfig
-  onSpeak: (text: string) => void
-  onSpeakSequence: (items: string[]) => void
+  activeAudioId: string | null
+  onSpeak: (text: string, overrideRate?: SpeechSpeed, activeId?: string) => void
+  onSpeakSequence: (
+    items: string[],
+    overrideRate?: SpeechSpeed,
+    activeId?: string
+  ) => void
   onActivityCompleted?: () => void
 }
 
 function deterministicShuffle(steps: StoryStep[]): StoryStep[] {
   if (steps.length <= 1) return steps
-  // Rotate and swap deterministically so steps never start in already-solved order
   const copy = [...steps]
   const rotated = [...copy.slice(1), copy[0]]
   if (rotated.length >= 3) {
@@ -23,9 +28,20 @@ function deterministicShuffle(steps: StoryStep[]): StoryStep[] {
   return rotated
 }
 
+function Soundwave() {
+  return (
+    <span className="soundwave" aria-hidden="true">
+      <i />
+      <i />
+      <i />
+    </span>
+  )
+}
+
 export function LessonActivity({
   lessonId,
   config,
+  activeAudioId,
   onSpeak,
   onSpeakSequence,
   onActivityCompleted,
@@ -37,11 +53,9 @@ export function LessonActivity({
   )
   const [activityDone, setActivityDone] = useState(false)
 
-  // Sentence builder state
   const [selectedChipIndices, setSelectedChipIndices] = useState<number[]>([])
   const [sentenceFeedback, setSentenceFeedback] = useState<string>('')
 
-  // Story order state
   const [orderedStepIds, setOrderedStepIds] = useState<string[]>([])
   const [storyError, setStoryError] = useState<string>('')
 
@@ -65,10 +79,12 @@ export function LessonActivity({
     const rounds = config.rounds
     const currentRound = rounds[roundIndex] ?? rounds[0]
     const isListen = config.kind === 'listen_pick'
+    const listenNormalId = `activity-listen-normal-${lessonId}-${roundIndex}`
+    const listenSlowId = `activity-listen-slow-${lessonId}-${roundIndex}`
 
     const handlePick = (optionId: string, label: string) => {
       setPickedOptionId(optionId)
-      onSpeak(label)
+      onSpeak(label, undefined, `activity-opt-${lessonId}-${optionId}`)
 
       if (optionId === currentRound.correctId) {
         setRoundResult('correct')
@@ -108,14 +124,49 @@ export function LessonActivity({
 
         {isListen && config.rounds[roundIndex] && (
           <div className="activity-prompt-card">
-            <button
-              type="button"
-              className="listen-hero-btn"
-              onClick={() => onSpeak(config.rounds[roundIndex].audioText)}
-            >
-              <Volume2 size={20} aria-hidden="true" />
-              <span>Bấm để nghe câu mẫu</span>
-            </button>
+            <div className="activity-audio-pair">
+              <button
+                type="button"
+                lang="en"
+                aria-label={`Listen: ${config.rounds[roundIndex].audioText}`}
+                className={`listen-hero-btn ${
+                  activeAudioId === listenNormalId ? 'is-speaking' : ''
+                }`}
+                onClick={() =>
+                  onSpeak(
+                    config.rounds[roundIndex].audioText,
+                    'normal',
+                    listenNormalId
+                  )
+                }
+              >
+                <Volume2 size={20} aria-hidden="true" />
+                <span lang="vi">
+                  {activeAudioId === listenNormalId ? 'Đang đọc…' : 'Nghe câu mẫu'}
+                </span>
+                {activeAudioId === listenNormalId && <Soundwave />}
+              </button>
+
+              <button
+                type="button"
+                lang="en"
+                aria-label={`Listen slowly: ${config.rounds[roundIndex].audioText}`}
+                className={`audio-pill-btn slow ${
+                  activeAudioId === listenSlowId ? 'is-speaking' : ''
+                }`}
+                onClick={() =>
+                  onSpeak(
+                    config.rounds[roundIndex].audioText,
+                    'slow',
+                    listenSlowId
+                  )
+                }
+              >
+                <span aria-hidden="true">🐢</span>
+                <span lang="vi">Chậm</span>
+                {activeAudioId === listenSlowId && <Soundwave />}
+              </button>
+            </div>
             <p className="activity-hint">{config.rounds[roundIndex].hintVi}</p>
           </div>
         )}
@@ -135,21 +186,26 @@ export function LessonActivity({
             const isCorrect =
               roundResult === 'correct' && option.id === currentRound.correctId
             const isWrong = roundResult === 'retry' && isPicked
+            const optAudioId = `activity-opt-${lessonId}-${option.id}`
+            const isPlaying = activeAudioId === optAudioId
 
             return (
               <button
                 type="button"
+                lang="en"
                 key={option.id}
                 className={`activity-option-card ${
                   isCorrect ? 'is-correct' : ''
-                } ${isWrong ? 'is-retry' : ''}`}
+                } ${isWrong ? 'is-retry' : ''} ${
+                  isPlaying ? 'is-speaking' : ''
+                }`}
                 onClick={() => handlePick(option.id, option.label)}
               >
                 <span className="option-emoji" aria-hidden="true">
                   {option.emoji}
                 </span>
                 <b lang="en">{option.label}</b>
-                {option.sublabel && <small>{option.sublabel}</small>}
+                {option.sublabel && <small lang="vi">{option.sublabel}</small>}
               </button>
             )
           })}
@@ -197,12 +253,15 @@ export function LessonActivity({
         target.replace(/[.,!?]/g, '').trim().toLowerCase() === normalizedBuilt
     )
 
+    const starterNormalId = `starter-normal-${lessonId}`
+    const starterSlowId = `starter-slow-${lessonId}`
+
     const toggleChip = (idx: number) => {
       setSentenceFeedback('')
       setSelectedChipIndices((prev) =>
         prev.includes(idx) ? prev.filter((item) => item !== idx) : [...prev, idx]
       )
-      onSpeak(config.chips[idx])
+      onSpeak(config.chips[idx], undefined, `chip-${lessonId}-${idx}`)
     }
 
     const checkSentence = () => {
@@ -212,7 +271,7 @@ export function LessonActivity({
       }
       if (isMatched) {
         setSentenceFeedback('Chính xác! Bé vừa ghép được câu tiếng Anh hoàn chỉnh.')
-        onSpeak(builtSentence)
+        onSpeak(builtSentence, undefined, `built-${lessonId}`)
         setActivityDone(true)
         onActivityCompleted?.()
       } else {
@@ -232,14 +291,37 @@ export function LessonActivity({
         </div>
 
         <div className="activity-prompt-card starter-card">
-          <button
-            type="button"
-            className="starter-listen-btn"
-            onClick={() => onSpeak(config.starterPromptEn)}
-          >
-            <Volume2 size={18} aria-hidden="true" />
-            <span lang="en">{config.starterPromptEn}</span>
-          </button>
+          <div className="activity-audio-pair">
+            <button
+              type="button"
+              lang="en"
+              className={`starter-listen-btn ${
+                activeAudioId === starterNormalId ? 'is-speaking' : ''
+              }`}
+              onClick={() =>
+                onSpeak(config.starterPromptEn, 'normal', starterNormalId)
+              }
+            >
+              <Volume2 size={18} aria-hidden="true" />
+              <span lang="en">{config.starterPromptEn}</span>
+              {activeAudioId === starterNormalId && <Soundwave />}
+            </button>
+            <button
+              type="button"
+              lang="en"
+              aria-label={`Listen slowly: ${config.starterPromptEn}`}
+              className={`audio-pill-btn slow ${
+                activeAudioId === starterSlowId ? 'is-speaking' : ''
+              }`}
+              onClick={() =>
+                onSpeak(config.starterPromptEn, 'slow', starterSlowId)
+              }
+            >
+              <span aria-hidden="true">🐢</span>
+              <span lang="vi">Chậm</span>
+              {activeAudioId === starterSlowId && <Soundwave />}
+            </button>
+          </div>
           <p className="activity-hint">{config.starterPromptVi}</p>
         </div>
 
@@ -324,6 +406,8 @@ export function LessonActivity({
   // story_order
   const expectedNextOrder = orderedStepIds.length + 1
   const allOrdered = orderedStepIds.length === config.steps.length
+  const storyNormalId = `story-seq-normal-${lessonId}`
+  const storySlowId = `story-seq-slow-${lessonId}`
 
   const handlePickStoryStep = (step: StoryStep) => {
     if (orderedStepIds.includes(step.id)) return
@@ -332,7 +416,7 @@ export function LessonActivity({
       const nextList = [...orderedStepIds, step.id]
       setOrderedStepIds(nextList)
       setStoryError('')
-      onSpeak(step.en)
+      onSpeak(step.en, undefined, `story-step-${step.id}`)
       if (nextList.length === config.steps.length) {
         setActivityDone(true)
         onActivityCompleted?.()
@@ -361,12 +445,15 @@ export function LessonActivity({
           {orderedStepIds.map((id, idx) => {
             const step = config.steps.find((s) => s.id === id)
             if (!step) return null
+            const stepAudioId = `story-step-${step.id}`
+            const isPlaying = activeAudioId === stepAudioId
             return (
               <button
                 type="button"
+                lang="en"
                 key={id}
-                className="story-timeline-item"
-                onClick={() => onSpeak(step.en)}
+                className={`story-timeline-item ${isPlaying ? 'is-speaking' : ''}`}
+                onClick={() => onSpeak(step.en, undefined, stepAudioId)}
               >
                 <span className="story-badge tabular-nums">{idx + 1}</span>
                 <span className="story-emoji" aria-hidden="true">
@@ -374,9 +461,9 @@ export function LessonActivity({
                 </span>
                 <div className="story-item-text">
                   <b lang="en">{step.en}</b>
-                  <small>{step.vi}</small>
+                  <small lang="vi">{step.vi}</small>
                 </div>
-                <Volume2 size={16} aria-hidden="true" />
+                {isPlaying ? <Soundwave /> : <Volume2 size={16} aria-hidden="true" />}
               </button>
             )
           })}
@@ -390,6 +477,7 @@ export function LessonActivity({
             return (
               <button
                 type="button"
+                lang="en"
                 key={step.id}
                 className={`story-pool-card ${picked ? 'is-picked' : ''}`}
                 disabled={picked}
@@ -400,7 +488,7 @@ export function LessonActivity({
                 </span>
                 <div className="story-item-text">
                   <b lang="en">{step.en}</b>
-                  <small>{step.vi}</small>
+                  <small lang="vi">{step.vi}</small>
                 </div>
               </button>
             )
@@ -421,11 +509,41 @@ export function LessonActivity({
           <div className="story-finish-actions">
             <button
               type="button"
-              className="activity-next-btn"
-              onClick={() => onSpeakSequence(config.steps.map((s) => s.en))}
+              lang="en"
+              aria-label="Listen to the whole story"
+              className={`activity-next-btn ${
+                activeAudioId === storyNormalId ? 'is-speaking' : ''
+              }`}
+              onClick={() =>
+                onSpeakSequence(
+                  config.steps.map((s) => s.en),
+                  'normal',
+                  storyNormalId
+                )
+              }
             >
               <Volume2 size={15} aria-hidden="true" />
-              <span>Nghe cả câu chuyện</span>
+              <span lang="vi">Nghe cả câu chuyện</span>
+              {activeAudioId === storyNormalId && <Soundwave />}
+            </button>
+            <button
+              type="button"
+              lang="en"
+              aria-label="Listen slowly to the whole story"
+              className={`audio-pill-btn slow ${
+                activeAudioId === storySlowId ? 'is-speaking' : ''
+              }`}
+              onClick={() =>
+                onSpeakSequence(
+                  config.steps.map((s) => s.en),
+                  'slow',
+                  storySlowId
+                )
+              }
+            >
+              <span aria-hidden="true">🐢</span>
+              <span lang="vi">Chậm</span>
+              {activeAudioId === storySlowId && <Soundwave />}
             </button>
             <button
               type="button"
