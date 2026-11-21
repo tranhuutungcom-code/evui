@@ -11,6 +11,7 @@ import {
 import type { Lesson, Level } from '../types/curriculum'
 import type { RouteState } from '../utils/router'
 import type { HistoryEntry } from '../utils/storage'
+import { PWAInstallButton } from './PWAInstallButton'
 
 interface ParentPageProps {
   levels: Level[]
@@ -222,6 +223,8 @@ export function ParentPage({
               <li>Không so sánh tốc độ tiếp thu của trẻ với bạn khác.</li>
             </ul>
           </div>
+
+          <PWAInstallButton variant="card" />
 
           <div className="side-card safety-card">
             <ShieldCheck size={22} aria-hidden="true" />

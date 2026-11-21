@@ -222,9 +222,14 @@ export default function App() {
 
       <footer className="site-footer">
         <div className="footer-brand">
-          <span className="brand-mark" aria-hidden="true">
-            EL
-          </span>
+          <img
+            src="/logo-evui.png"
+            alt="Logo English Little World"
+            className="brand-logo footer-logo"
+            width={44}
+            height={44}
+            decoding="async"
+          />
           <div>
             <b>ENGLISH LITTLE WORLD</b>
             <small>Nghe · Nói · Chơi · Lớn khôn</small>

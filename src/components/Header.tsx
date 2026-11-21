@@ -22,9 +22,14 @@ export function Header({
           className="brand"
           onClick={() => onNavigate({ page: 'home' })}
         >
-          <span className="brand-mark" aria-hidden="true">
-            EL
-          </span>
+          <img
+            src="/logo-evui.png"
+            alt="Logo English Little World"
+            className="brand-logo"
+            width={40}
+            height={40}
+            decoding="async"
+          />
           <span className="brand-name">ENGLISH LITTLE WORLD</span>
         </button>
 

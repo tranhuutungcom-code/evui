@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import type { Level } from '../types/curriculum'
 import type { RouteState } from '../utils/router'
+import { PWAInstallButton } from './PWAInstallButton'
 
 interface HomePageProps {
   levels: Level[]
@@ -27,7 +28,17 @@ export function HomePage({
     <main>
       <section className="hero">
         <div className="hero-copy">
-          <p className="eyebrow">Nghe · Nói · Chơi · Lớn khôn</p>
+          <div className="hero-welcome-brand">
+            <img
+              src="/logo-evui.png"
+              alt="Biểu tượng English Little World"
+              className="hero-welcome-logo"
+              width={56}
+              height={56}
+              decoding="async"
+            />
+            <p className="eyebrow">Nghe · Nói · Chơi · Lớn khôn</p>
+          </div>
           <h1>
             Mỗi ngày một chút,
             <br />
@@ -59,6 +70,7 @@ export function HomePage({
               <Play size={17} aria-hidden="true" />
               <span>Trải nghiệm bài học</span>
             </button>
+            <PWAInstallButton variant="inline" />
           </div>
           <div className="trust-row">
             <span>
