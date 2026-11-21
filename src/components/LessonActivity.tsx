@@ -142,7 +142,9 @@ export function LessonActivity({
               >
                 <Volume2 size={20} aria-hidden="true" />
                 <span lang="vi">
-                  {activeAudioId === listenNormalId ? 'Đang đọc…' : 'Nghe câu mẫu'}
+                  {activeAudioId === listenNormalId
+                    ? 'Đang đọc...'
+                    : 'Nghe câu mẫu'}
                 </span>
                 {activeAudioId === listenNormalId && <Soundwave />}
               </button>
@@ -163,7 +165,11 @@ export function LessonActivity({
                 }
               >
                 <span aria-hidden="true">🐢</span>
-                <span lang="vi">Chậm</span>
+                <span lang="vi">
+                  {activeAudioId === listenSlowId
+                    ? 'Đang nghe chậm...'
+                    : 'Nghe chậm'}
+                </span>
                 {activeAudioId === listenSlowId && <Soundwave />}
               </button>
             </div>
@@ -318,7 +324,11 @@ export function LessonActivity({
               }
             >
               <span aria-hidden="true">🐢</span>
-              <span lang="vi">Chậm</span>
+              <span lang="vi">
+                {activeAudioId === starterSlowId
+                  ? 'Đang nghe chậm...'
+                  : 'Nghe chậm'}
+              </span>
               {activeAudioId === starterSlowId && <Soundwave />}
             </button>
           </div>
@@ -523,7 +533,11 @@ export function LessonActivity({
               }
             >
               <Volume2 size={15} aria-hidden="true" />
-              <span lang="vi">Nghe cả câu chuyện</span>
+              <span lang="vi">
+                {activeAudioId === storyNormalId
+                  ? 'Đang đọc...'
+                  : 'Nghe cả câu chuyện'}
+              </span>
               {activeAudioId === storyNormalId && <Soundwave />}
             </button>
             <button
@@ -542,7 +556,11 @@ export function LessonActivity({
               }
             >
               <span aria-hidden="true">🐢</span>
-              <span lang="vi">Chậm</span>
+              <span lang="vi">
+                {activeAudioId === storySlowId
+                  ? 'Đang nghe chậm...'
+                  : 'Nghe chậm'}
+              </span>
               {activeAudioId === storySlowId && <Soundwave />}
             </button>
             <button

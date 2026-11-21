@@ -66,7 +66,7 @@ export function LessonPage({
     stopAll,
     resetTranscript,
     dismissFallbackNotice,
-  } = useSpeech(speechRate)
+  } = useSpeech(speechRate, level.id)
 
   useEffect(() => {
     stopAll()
@@ -179,25 +179,11 @@ export function LessonPage({
           </div>
 
           <p className="muted">
-            Chạm nút <strong>Nghe</strong> để nghe giọng đọc chuẩn, hoặc{' '}
-            <strong>🐢 Chậm</strong> để bé 3–5 tuổi nghe rõ từng âm tiết. Khuyến
-            khích bé nhắc lại tự nhiên, không tạo áp lực phải phát âm hoàn hảo.
+            Chạm nút <strong>Nghe</strong> để nghe giọng đọc chuẩn theo độ tuổi,
+            hoặc <strong>🐢 Chậm</strong> để bé 3–5 tuổi nghe rõ từng âm tiết.
+            Khuyến khích bé nhắc lại tự nhiên, không tạo áp lực phải phát âm
+            hoàn hảo.
           </p>
-
-          {fallbackNotice && (
-            <div className="speech-fallback-banner" role="status">
-              <VolumeX size={18} aria-hidden="true" />
-              <span>{fallbackNotice}</span>
-              <button
-                type="button"
-                className="fallback-dismiss-btn"
-                aria-label="Đóng thông báo âm thanh"
-                onClick={dismissFallbackNotice}
-              >
-                <X size={15} aria-hidden="true" />
-              </button>
-            </div>
-          )}
 
           <div className="word-grid">
             {lesson.words.map((item) => {
@@ -217,7 +203,9 @@ export function LessonPage({
                     lang="en"
                     aria-label={`Listen to ${item.word}`}
                     className="word-card-face"
-                    onClick={() => speak(item.word, 'normal', normalId)}
+                    onClick={() =>
+                      speak(item.word, 'normal', normalId, item.audioUrl)
+                    }
                   >
                     <span className="word-emoji" aria-hidden="true">
                       {item.emoji}
@@ -236,11 +224,13 @@ export function LessonPage({
                       className={`audio-pill-btn ${
                         isNormalPlaying ? 'is-speaking' : ''
                       }`}
-                      onClick={() => speak(item.word, 'normal', normalId)}
+                      onClick={() =>
+                        speak(item.word, 'normal', normalId, item.audioUrl)
+                      }
                     >
                       <Volume2 size={15} aria-hidden="true" />
                       <span lang="vi">
-                        {isNormalPlaying ? 'Đang đọc' : 'Nghe'}
+                        {isNormalPlaying ? 'Đang đọc...' : 'Nghe'}
                       </span>
                       {isNormalPlaying && <Soundwave />}
                     </button>
@@ -252,10 +242,14 @@ export function LessonPage({
                       className={`audio-pill-btn slow ${
                         isSlowPlaying ? 'is-speaking' : ''
                       }`}
-                      onClick={() => speak(item.word, 'slow', slowId)}
+                      onClick={() =>
+                        speak(item.word, 'slow', slowId, item.audioUrl)
+                      }
                     >
                       <span aria-hidden="true">🐢</span>
-                      <span lang="vi">Chậm</span>
+                      <span lang="vi">
+                        {isSlowPlaying ? 'Đang chậm...' : 'Chậm'}
+                      </span>
                       {isSlowPlaying && <Soundwave />}
                     </button>
                   </div>
@@ -284,7 +278,9 @@ export function LessonPage({
                       lang="en"
                       aria-label={`Listen to ${phrase.en}`}
                       className="phrase-text-btn"
-                      onClick={() => speak(phrase.en, 'normal', normalId)}
+                      onClick={() =>
+                        speak(phrase.en, 'normal', normalId, phrase.audioUrl)
+                      }
                     >
                       <strong lang="en">{phrase.en}</strong>
                       <small lang="vi">{phrase.vi}</small>
@@ -298,11 +294,13 @@ export function LessonPage({
                         className={`audio-pill-btn ${
                           isNormalPlaying ? 'is-speaking' : ''
                         }`}
-                        onClick={() => speak(phrase.en, 'normal', normalId)}
+                        onClick={() =>
+                          speak(phrase.en, 'normal', normalId, phrase.audioUrl)
+                        }
                       >
                         <Volume2 size={15} aria-hidden="true" />
                         <span lang="vi">
-                          {isNormalPlaying ? 'Đang đọc' : 'Nghe'}
+                          {isNormalPlaying ? 'Đang đọc...' : 'Nghe'}
                         </span>
                         {isNormalPlaying && <Soundwave />}
                       </button>
@@ -314,10 +312,14 @@ export function LessonPage({
                         className={`audio-pill-btn slow ${
                           isSlowPlaying ? 'is-speaking' : ''
                         }`}
-                        onClick={() => speak(phrase.en, 'slow', slowId)}
+                        onClick={() =>
+                          speak(phrase.en, 'slow', slowId, phrase.audioUrl)
+                        }
                       >
                         <span aria-hidden="true">🐢</span>
-                        <span lang="vi">Chậm</span>
+                        <span lang="vi">
+                          {isSlowPlaying ? 'Đang nghe chậm...' : 'Nghe chậm'}
+                        </span>
                         {isSlowPlaying && <Soundwave />}
                       </button>
                     </div>
@@ -430,6 +432,21 @@ export function LessonPage({
           </div>
         </aside>
       </div>
+
+      {fallbackNotice && (
+        <div className="speech-error-toast" role="alert">
+          <VolumeX size={18} aria-hidden="true" />
+          <span>{fallbackNotice}</span>
+          <button
+            type="button"
+            className="fallback-dismiss-btn"
+            aria-label="Đóng thông báo âm thanh"
+            onClick={dismissFallbackNotice}
+          >
+            <X size={16} aria-hidden="true" />
+          </button>
+        </div>
+      )}
     </main>
   )
 }

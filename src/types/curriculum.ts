@@ -10,11 +10,13 @@ export interface VocabItem {
   word: string
   emoji: string
   meaningVi: string
+  audioUrl?: string
 }
 
 export interface PhraseItem {
   en: string
   vi: string
+  audioUrl?: string
 }
 
 export interface ListenOption {

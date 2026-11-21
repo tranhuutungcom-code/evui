@@ -8,7 +8,7 @@ import { ProgramPage } from './components/ProgramPage'
 import { curriculumRepository } from './repositories/curriculumRepository'
 import type { LevelId } from './types/curriculum'
 import { buildHashPath, parseHashRoute, type RouteState } from './utils/router'
-import { cancelSpeech } from './utils/speech'
+import { cancelSpeech, installSpeechUnlockListener } from './utils/speech'
 import {
   clearLocalProgress,
   loadLocalProgress,
@@ -51,6 +51,8 @@ export default function App() {
   }, [progressState])
 
   useEffect(() => {
+    const cleanupUnlock = installSpeechUnlockListener()
+
     const handleHashChange = () => {
       cancelSpeech()
       const next = parseHashRoute(window.location.hash)
@@ -67,6 +69,7 @@ export default function App() {
 
     window.addEventListener('hashchange', handleHashChange)
     return () => {
+      cleanupUnlock()
       cancelSpeech()
       window.removeEventListener('hashchange', handleHashChange)
     }

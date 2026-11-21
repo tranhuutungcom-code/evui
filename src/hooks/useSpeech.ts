@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { LevelId } from '../types/curriculum'
 import {
   cancelSpeech,
+  installSpeechUnlockListener,
   isSpeechSynthesisSupported,
   SPEECH_FALLBACK_MESSAGE,
   speakEnglish,
@@ -40,16 +42,16 @@ function getSpeechRecognitionCtor(): SpeechRecognitionConstructor | null {
   return win.SpeechRecognition ?? win.webkitSpeechRecognition ?? null
 }
 
-export function useSpeech(defaultRateMode: SpeechSpeed) {
+export function useSpeech(defaultRateMode: SpeechSpeed, levelId?: LevelId) {
   const [activeAudioId, setActiveAudioId] = useState<string | null>(null)
   const [listening, setListening] = useState(false)
   const [transcript, setTranscript] = useState('')
   const [speechNotice, setSpeechNotice] = useState('')
   const [fallbackNotice, setFallbackNotice] = useState<string>(() =>
-    isSpeechSynthesisSupported() ? '' : SPEECH_FALLBACK_MESSAGE
+    isSpeechSynthesisSupported()
+      ? ''
+      : `${SPEECH_FALLBACK_MESSAGE} (Mã lỗi: unsupported)`
   )
-  const [voicesChecked, setVoicesChecked] = useState(false)
-  const [hasEnglishVoice, setHasEnglishVoice] = useState(true)
 
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null)
 
@@ -57,38 +59,19 @@ export function useSpeech(defaultRateMode: SpeechSpeed) {
   const micSupported = getSpeechRecognitionCtor() !== null
 
   useEffect(() => {
+    installSpeechUnlockListener()
+
     if (!ttsSupported) {
-      setHasEnglishVoice(false)
-      setVoicesChecked(true)
-      setFallbackNotice(SPEECH_FALLBACK_MESSAGE)
+      setFallbackNotice(`${SPEECH_FALLBACK_MESSAGE} (Mã lỗi: unsupported)`)
       return
     }
 
-    let timeoutId: number | undefined
-
-    const unsubscribe = subscribeVoicesChanged((voices, hasEnglish) => {
-      if (voices.length > 0) {
-        setVoicesChecked(true)
-        setHasEnglishVoice(hasEnglish)
-        setFallbackNotice(hasEnglish ? '' : SPEECH_FALLBACK_MESSAGE)
-      }
+    // Listen to async voice updates on Chrome/Android without blocking when [] on iOS Safari
+    const unsubscribe = subscribeVoicesChanged(() => {
+      // Voices cached by browser; never force an error banner solely because getVoices() is []
     })
 
-    // Give Chrome/Android async voice loading a brief window before checking empty voices
-    timeoutId = window.setTimeout(() => {
-      const voices = window.speechSynthesis.getVoices()
-      const hasEnglish = voices.some((v) =>
-        v.lang.toLowerCase().startsWith('en')
-      )
-      setVoicesChecked(true)
-      if (voices.length === 0 || !hasEnglish) {
-        setHasEnglishVoice(false)
-        setFallbackNotice(SPEECH_FALLBACK_MESSAGE)
-      }
-    }, 900)
-
     return () => {
-      if (timeoutId !== undefined) window.clearTimeout(timeoutId)
       unsubscribe()
     }
   }, [ttsSupported])
@@ -119,17 +102,24 @@ export function useSpeech(defaultRateMode: SpeechSpeed) {
   }, [])
 
   const speak = useCallback(
-    (text: string, overrideRate?: SpeechSpeed, activeId?: string) => {
+    (
+      text: string,
+      overrideRate?: SpeechSpeed,
+      activeId?: string,
+      audioUrl?: string
+    ) => {
       const rateMode = overrideRate ?? defaultRateMode
       const resolvedId = activeId ?? `${text}::${rateMode}`
 
-      if (!ttsSupported) {
-        setFallbackNotice(SPEECH_FALLBACK_MESSAGE)
+      if (!ttsSupported && !audioUrl) {
+        setFallbackNotice(`${SPEECH_FALLBACK_MESSAGE} (Mã lỗi: unsupported)`)
         return
       }
 
       speakEnglish(text, {
         rateMode,
+        levelId,
+        audioUrl,
         activeId: resolvedId,
         onStart: (id) => {
           setActiveAudioId(id)
@@ -143,19 +133,24 @@ export function useSpeech(defaultRateMode: SpeechSpeed) {
         },
       })
     },
-    [defaultRateMode, ttsSupported]
+    [defaultRateMode, levelId, ttsSupported]
   )
 
   const speakSequence = useCallback(
-    (items: string[], overrideRate?: SpeechSpeed, activeId = 'story-sequence') => {
+    (
+      items: string[],
+      overrideRate?: SpeechSpeed,
+      activeId = 'story-sequence'
+    ) => {
       const rateMode = overrideRate ?? defaultRateMode
       if (!ttsSupported) {
-        setFallbackNotice(SPEECH_FALLBACK_MESSAGE)
+        setFallbackNotice(`${SPEECH_FALLBACK_MESSAGE} (Mã lỗi: unsupported)`)
         return
       }
 
       speakEnglishSequence(items, {
         rateMode,
+        levelId,
         activeId,
         onStart: (id) => {
           setActiveAudioId(id)
@@ -169,7 +164,7 @@ export function useSpeech(defaultRateMode: SpeechSpeed) {
         },
       })
     },
-    [defaultRateMode, ttsSupported]
+    [defaultRateMode, levelId, ttsSupported]
   )
 
   const startMic = useCallback(() => {
@@ -251,8 +246,6 @@ export function useSpeech(defaultRateMode: SpeechSpeed) {
     transcript,
     speechNotice,
     fallbackNotice,
-    voicesChecked,
-    hasEnglishVoice,
     ttsSupported,
     micSupported,
     speak,
