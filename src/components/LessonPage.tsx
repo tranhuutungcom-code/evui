@@ -158,7 +158,7 @@ export function LessonPage({
               role="group"
               aria-label="Tốc độ mặc định cho trò chơi nghe"
             >
-              <Gauge size={15} aria-hidden="true" />
+              <Gauge size={18} aria-hidden="true" />
               <button
                 type="button"
                 className={speechRate === 'normal' ? 'active' : ''}
@@ -173,14 +173,15 @@ export function LessonPage({
                 aria-pressed={speechRate === 'slow'}
                 onClick={() => onChangeSpeechRate('slow')}
               >
-                🐢 Mặc định: Chậm
+                <span className="turtle-icon" aria-hidden="true">🐢</span>
+                <span>Mặc định: Chậm</span>
               </button>
             </div>
           </div>
 
           <p className="muted">
             Chạm nút <strong>Nghe</strong> để nghe giọng đọc chuẩn theo độ tuổi,
-            hoặc <strong>🐢 Chậm</strong> để bé 3–5 tuổi nghe rõ từng âm tiết.
+            hoặc <strong>🐢 Nghe chậm</strong> để bé 3–5 tuổi nghe rõ từng âm tiết.
             Khuyến khích bé nhắc lại tự nhiên, không tạo áp lực phải phát âm
             hoàn hảo.
           </p>
@@ -228,7 +229,7 @@ export function LessonPage({
                         speak(item.word, 'normal', normalId, item.audioUrl)
                       }
                     >
-                      <Volume2 size={15} aria-hidden="true" />
+                      <Volume2 size={20} aria-hidden="true" />
                       <span lang="vi">
                         {isNormalPlaying ? 'Đang đọc...' : 'Nghe'}
                       </span>
@@ -246,9 +247,9 @@ export function LessonPage({
                         speak(item.word, 'slow', slowId, item.audioUrl)
                       }
                     >
-                      <span aria-hidden="true">🐢</span>
+                      <span className="turtle-icon" aria-hidden="true">🐢</span>
                       <span lang="vi">
-                        {isSlowPlaying ? 'Đang chậm...' : 'Chậm'}
+                        {isSlowPlaying ? 'Đang chậm...' : 'Nghe chậm'}
                       </span>
                       {isSlowPlaying && <Soundwave />}
                     </button>
@@ -298,7 +299,7 @@ export function LessonPage({
                           speak(phrase.en, 'normal', normalId, phrase.audioUrl)
                         }
                       >
-                        <Volume2 size={15} aria-hidden="true" />
+                        <Volume2 size={20} aria-hidden="true" />
                         <span lang="vi">
                           {isNormalPlaying ? 'Đang đọc...' : 'Nghe'}
                         </span>
@@ -316,7 +317,7 @@ export function LessonPage({
                           speak(phrase.en, 'slow', slowId, phrase.audioUrl)
                         }
                       >
-                        <span aria-hidden="true">🐢</span>
+                        <span className="turtle-icon" aria-hidden="true">🐢</span>
                         <span lang="vi">
                           {isSlowPlaying ? 'Đang nghe chậm...' : 'Nghe chậm'}
                         </span>

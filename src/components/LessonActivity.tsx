@@ -140,7 +140,7 @@ export function LessonActivity({
                   )
                 }
               >
-                <Volume2 size={20} aria-hidden="true" />
+                <Volume2 size={22} aria-hidden="true" />
                 <span lang="vi">
                   {activeAudioId === listenNormalId
                     ? 'Đang đọc...'
@@ -164,7 +164,7 @@ export function LessonActivity({
                   )
                 }
               >
-                <span aria-hidden="true">🐢</span>
+                <span className="turtle-icon" aria-hidden="true">🐢</span>
                 <span lang="vi">
                   {activeAudioId === listenSlowId
                     ? 'Đang nghe chậm...'
@@ -308,7 +308,7 @@ export function LessonActivity({
                 onSpeak(config.starterPromptEn, 'normal', starterNormalId)
               }
             >
-              <Volume2 size={18} aria-hidden="true" />
+              <Volume2 size={20} aria-hidden="true" />
               <span lang="en">{config.starterPromptEn}</span>
               {activeAudioId === starterNormalId && <Soundwave />}
             </button>
@@ -323,7 +323,7 @@ export function LessonActivity({
                 onSpeak(config.starterPromptEn, 'slow', starterSlowId)
               }
             >
-              <span aria-hidden="true">🐢</span>
+              <span className="turtle-icon" aria-hidden="true">🐢</span>
               <span lang="vi">
                 {activeAudioId === starterSlowId
                   ? 'Đang nghe chậm...'
@@ -532,7 +532,7 @@ export function LessonActivity({
                 )
               }
             >
-              <Volume2 size={15} aria-hidden="true" />
+              <Volume2 size={18} aria-hidden="true" />
               <span lang="vi">
                 {activeAudioId === storyNormalId
                   ? 'Đang đọc...'
@@ -555,7 +555,7 @@ export function LessonActivity({
                 )
               }
             >
-              <span aria-hidden="true">🐢</span>
+              <span className="turtle-icon" aria-hidden="true">🐢</span>
               <span lang="vi">
                 {activeAudioId === storySlowId
                   ? 'Đang nghe chậm...'

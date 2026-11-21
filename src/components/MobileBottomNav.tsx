@@ -20,7 +20,7 @@ export function MobileBottomNav({
         aria-current={currentPage === 'home' ? 'page' : undefined}
         onClick={() => onNavigate({ page: 'home' })}
       >
-        <Home size={20} aria-hidden="true" />
+        <Home size={22} aria-hidden="true" />
         <span>Trang chủ</span>
       </button>
       <button
@@ -29,7 +29,7 @@ export function MobileBottomNav({
         aria-current={currentPage === 'program' ? 'page' : undefined}
         onClick={() => onNavigate({ page: 'program' })}
       >
-        <BookOpen size={20} aria-hidden="true" />
+        <BookOpen size={22} aria-hidden="true" />
         <span>Lộ trình</span>
       </button>
       <button
@@ -40,7 +40,7 @@ export function MobileBottomNav({
           onNavigate({ page: 'lesson', lessonId: continueLessonId })
         }
       >
-        <PlayCircle size={20} aria-hidden="true" />
+        <PlayCircle size={22} aria-hidden="true" />
         <span>Học bài</span>
       </button>
       <button
@@ -49,7 +49,7 @@ export function MobileBottomNav({
         aria-current={currentPage === 'parent' ? 'page' : undefined}
         onClick={() => onNavigate({ page: 'parent' })}
       >
-        <Users size={20} aria-hidden="true" />
+        <Users size={22} aria-hidden="true" />
         <span>Phụ huynh</span>
       </button>
     </nav>
