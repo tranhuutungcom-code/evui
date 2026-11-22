@@ -99,26 +99,38 @@ export function LessonPage({
     dismissFallbackNotice,
   } = useSpeech(speechRate, level.id)
 
+  const currentStepRef = useRef(currentStep)
+  const isCompletedRef = useRef(isCompleted)
+  currentStepRef.current = currentStep
+  isCompletedRef.current = isCompleted
+
   useEffect(() => {
     stopAll()
     resetTranscript()
     setCompletionBanner('')
     setCurrentStep(initialStep)
     lessonStartMsRef.current = Date.now()
-  }, [lesson.id, initialStep, stopAll, resetTranscript])
+    // Only reset speech & lesson timer when switching to a different lessonId
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lesson.id])
+
+  useEffect(() => {
+    setCurrentStep((prev) => Math.max(prev, initialStep))
+  }, [initialStep])
 
   const getElapsedSeconds = () =>
     Math.max(1, Math.round((Date.now() - lessonStartMsRef.current) / 1000))
 
   // Persist midpoint state automatically when leaving/unmounting mid-lesson
   useEffect(() => {
+    const activeLessonId = lesson.id
     return () => {
-      if (!isCompleted && currentStep > 0) {
-        onSaveProgressStep(lesson.id, currentStep, getElapsedSeconds())
+      if (!isCompletedRef.current && currentStepRef.current > 0) {
+        onSaveProgressStep(activeLessonId, currentStepRef.current, getElapsedSeconds())
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lesson.id, isCompleted, currentStep])
+  }, [lesson.id])
 
   const advanceStep = (nextStep: number) => {
     const clamped = Math.max(currentStep, nextStep)

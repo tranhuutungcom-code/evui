@@ -21,7 +21,7 @@ import type {
   PronunciationFeedbackResult,
 } from '../types/platform'
 import type { RouteState } from '../utils/router'
-import { speakEnglish } from '../utils/speech'
+import { cancelSpeech, speakEnglish } from '../utils/speech'
 
 interface AIBuddyPanelProps {
   level: Level
@@ -101,6 +101,7 @@ export function AIBuddyPanel({
     mimeType?: string,
     fallbackText?: string
   ) => {
+    cancelSpeech()
     if (activeAudioRef.current) {
       activeAudioRef.current.pause()
       activeAudioRef.current = null
@@ -110,6 +111,7 @@ export function AIBuddyPanel({
         const audio = new Audio(`data:${mimeType};base64,${audioBase64}`)
         activeAudioRef.current = audio
         audio.play().catch(() => {
+          if (activeAudioRef.current === audio) activeAudioRef.current = null
           if (fallbackText) speakEnglish(fallbackText, { levelId: level.id })
         })
         return
@@ -227,6 +229,11 @@ export function AIBuddyPanel({
 
   const startVoiceRecording = async (mode: 'buddy' | 'pronunciation') => {
     setErrorMsg('')
+    cancelSpeech()
+    if (activeAudioRef.current) {
+      activeAudioRef.current.pause()
+      activeAudioRef.current = null
+    }
     if (
       typeof navigator === 'undefined' ||
       !navigator.mediaDevices?.getUserMedia ||
@@ -531,12 +538,16 @@ export function AIBuddyPanel({
                   <button
                     type="button"
                     className="audio-pill-btn"
-                    onClick={() =>
+                    onClick={() => {
+                      if (activeAudioRef.current) {
+                        activeAudioRef.current.pause()
+                        activeAudioRef.current = null
+                      }
                       speakEnglish(targetPhrase, {
                         levelId: level.id,
                         rateMode: 'normal',
                       })
-                    }
+                    }}
                   >
                     <Volume2 size={18} aria-hidden="true" />
                     <span>Nghe mẫu</span>
@@ -544,12 +555,16 @@ export function AIBuddyPanel({
                   <button
                     type="button"
                     className="audio-pill-btn slow"
-                    onClick={() =>
+                    onClick={() => {
+                      if (activeAudioRef.current) {
+                        activeAudioRef.current.pause()
+                        activeAudioRef.current = null
+                      }
                       speakEnglish(targetPhrase, {
                         levelId: level.id,
                         rateMode: 'slow',
                       })
-                    }
+                    }}
                   >
                     <span className="turtle-icon" aria-hidden="true">
                       🐢

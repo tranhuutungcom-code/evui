@@ -44,6 +44,9 @@ function getSpeechRecognitionCtor(): SpeechRecognitionConstructor | null {
 
 export function useSpeech(defaultRateMode: SpeechSpeed, levelId?: LevelId) {
   const [activeAudioId, setActiveAudioId] = useState<string | null>(null)
+  const [speechStatus, setSpeechStatus] = useState<
+    'idle' | 'loading' | 'speaking' | 'completed' | 'error' | 'unsupported'
+  >(() => (isSpeechSynthesisSupported() ? 'idle' : 'unsupported'))
   const [listening, setListening] = useState(false)
   const [transcript, setTranscript] = useState('')
   const [speechNotice, setSpeechNotice] = useState('')
@@ -62,6 +65,7 @@ export function useSpeech(defaultRateMode: SpeechSpeed, levelId?: LevelId) {
     installSpeechUnlockListener()
 
     if (!ttsSupported) {
+      setSpeechStatus('unsupported')
       setFallbackNotice(`${SPEECH_FALLBACK_MESSAGE} (Mã lỗi: unsupported)`)
       return
     }
@@ -87,6 +91,7 @@ export function useSpeech(defaultRateMode: SpeechSpeed, levelId?: LevelId) {
       recognitionRef.current = null
     }
     setActiveAudioId(null)
+    setSpeechStatus((prev) => (prev === 'unsupported' ? 'unsupported' : 'idle'))
     setListening(false)
   }, [])
 
@@ -112,6 +117,7 @@ export function useSpeech(defaultRateMode: SpeechSpeed, levelId?: LevelId) {
       const resolvedId = activeId ?? `${text}::${rateMode}`
 
       if (!ttsSupported && !audioUrl) {
+        setSpeechStatus('unsupported')
         setFallbackNotice(`${SPEECH_FALLBACK_MESSAGE} (Mã lỗi: unsupported)`)
         return
       }
@@ -121,6 +127,9 @@ export function useSpeech(defaultRateMode: SpeechSpeed, levelId?: LevelId) {
         levelId,
         audioUrl,
         activeId: resolvedId,
+        onStateChange: (nextStatus) => {
+          setSpeechStatus(nextStatus)
+        },
         onStart: (id) => {
           setActiveAudioId(id)
           setFallbackNotice('')
@@ -144,6 +153,7 @@ export function useSpeech(defaultRateMode: SpeechSpeed, levelId?: LevelId) {
     ) => {
       const rateMode = overrideRate ?? defaultRateMode
       if (!ttsSupported) {
+        setSpeechStatus('unsupported')
         setFallbackNotice(`${SPEECH_FALLBACK_MESSAGE} (Mã lỗi: unsupported)`)
         return
       }
@@ -152,6 +162,9 @@ export function useSpeech(defaultRateMode: SpeechSpeed, levelId?: LevelId) {
         rateMode,
         levelId,
         activeId,
+        onStateChange: (nextStatus) => {
+          setSpeechStatus(nextStatus)
+        },
         onStart: (id) => {
           setActiveAudioId(id)
           setFallbackNotice('')
@@ -242,6 +255,7 @@ export function useSpeech(defaultRateMode: SpeechSpeed, levelId?: LevelId) {
 
   return {
     activeAudioId,
+    speechStatus,
     listening,
     transcript,
     speechNotice,
