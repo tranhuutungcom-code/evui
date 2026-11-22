@@ -4,6 +4,8 @@ export type LessonType = 'listen' | 'speak' | 'play' | 'story'
 
 export type LessonStatus = 'draft' | 'review' | 'published' | 'archived'
 
+export type AccessTier = 'free' | 'premium'
+
 export type LevelColor = 'peach' | 'yellow' | 'green' | 'purple'
 
 export interface VocabItem {
@@ -11,6 +13,7 @@ export interface VocabItem {
   emoji: string
   meaningVi: string
   audioUrl?: string
+  imageUrl?: string
 }
 
 export interface PhraseItem {
@@ -74,21 +77,29 @@ export type ActivityConfig =
       steps: StoryStep[]
     }
 
+export interface LessonMedia {
+  coverImageUrl?: string
+  videoUrl?: string
+}
+
 export interface Lesson {
   id: string
   unitId: string
   levelId: LevelId
   order: number
+  pedagogicalSlot?: number
   title: string
   duration: string
   durationMinutes: number
   objective: string
   type: LessonType
+  accessTier?: AccessTier
   words: VocabItem[]
   phrases: PhraseItem[]
   activity: string
   activityConfig: ActivityConfig
   parentTip: string
+  media?: LessonMedia
   status: LessonStatus
   version: number
 }
@@ -124,8 +135,10 @@ export interface LessonLocation {
 
 export interface CurriculumRepository {
   getLevels(): Level[]
+  getCatalogLevels(): Level[]
   getLevelById(levelId: LevelId): Level | undefined
   getAllLessons(): Lesson[]
+  getAllCatalogLessons(): Lesson[]
   getLessonLocation(lessonId: string): LessonLocation | undefined
   getAdjacentLessons(lessonId: string): {
     prev: LessonLocation | null

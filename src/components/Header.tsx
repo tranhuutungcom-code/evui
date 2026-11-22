@@ -1,9 +1,11 @@
 import { Menu, Users, X } from 'lucide-react'
+import type { ChildProfile } from '../types/platform'
 import type { RouteState } from '../utils/router'
 
 interface HeaderProps {
   currentPage: RouteState['page']
   mobileMenuOpen: boolean
+  activeChild: ChildProfile | null
   onToggleMobileMenu: () => void
   onNavigate: (route: RouteState) => void
 }
@@ -11,6 +13,7 @@ interface HeaderProps {
 export function Header({
   currentPage,
   mobileMenuOpen,
+  activeChild,
   onToggleMobileMenu,
   onNavigate,
 }: HeaderProps) {
@@ -56,7 +59,7 @@ export function Header({
           </button>
           <button
             type="button"
-            className={currentPage === 'parent' ? 'active' : ''}
+            className={currentPage === 'parent' || currentPage === 'admin' ? 'active' : ''}
             aria-current={currentPage === 'parent' ? 'page' : undefined}
             onClick={() => onNavigate({ page: 'parent' })}
           >
@@ -65,6 +68,17 @@ export function Header({
         </nav>
 
         <div className="top-actions">
+          {activeChild && (
+            <button
+              type="button"
+              className="active-child-pill"
+              onClick={() => onNavigate({ page: 'parent' })}
+              title="Đổi hồ sơ bé"
+            >
+              <span aria-hidden="true">{activeChild.avatarEmoji}</span>
+              <span>{activeChild.nickname}</span>
+            </button>
+          )}
           <button
             type="button"
             className="parent-btn"
@@ -107,6 +121,13 @@ export function Header({
             onClick={() => onNavigate({ page: 'parent' })}
           >
             Dành cho phụ huynh
+          </button>
+          <button
+            type="button"
+            className={currentPage === 'admin' ? 'active' : ''}
+            onClick={() => onNavigate({ page: 'admin' })}
+          >
+            Quản trị nội dung (CMS)
           </button>
         </nav>
       )}

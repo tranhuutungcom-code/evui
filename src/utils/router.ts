@@ -5,10 +5,16 @@ export type RouteState =
   | { page: 'program'; levelId?: LevelId }
   | { page: 'lesson'; lessonId: string }
   | { page: 'parent' }
+  | { page: 'admin' }
 
 const VALID_LEVELS: LevelId[] = ['L1', 'L2', 'L3', 'L4']
 
 export function parseHashRoute(hash: string): RouteState {
+  // Handle Supabase auth recovery / confirmation redirect hashes gracefully
+  if (hash.includes('access_token=') || hash.includes('type=recovery')) {
+    return { page: 'parent' }
+  }
+
   const cleaned = hash.replace(/^#\/?/, '').trim()
   if (!cleaned) return { page: 'home' }
 
@@ -31,6 +37,10 @@ export function parseHashRoute(hash: string): RouteState {
     return { page: 'parent' }
   }
 
+  if (root === 'quan-tri') {
+    return { page: 'admin' }
+  }
+
   return { page: 'home' }
 }
 
@@ -44,5 +54,7 @@ export function buildHashPath(route: RouteState): string {
       return `#/bai-hoc/${encodeURIComponent(route.lessonId)}`
     case 'parent':
       return '#/phu-huynh'
+    case 'admin':
+      return '#/quan-tri'
   }
 }

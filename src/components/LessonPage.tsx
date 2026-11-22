@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   ArrowLeft,
   ArrowRight,
@@ -7,14 +7,17 @@ import {
   LockKeyhole,
   Mic,
   MicOff,
+  Play,
   Volume2,
   VolumeX,
   X,
 } from 'lucide-react'
 import { useSpeech } from '../hooks/useSpeech'
 import type { Lesson, LessonLocation, Level, Unit } from '../types/curriculum'
+import type { ChildProfile } from '../types/platform'
 import type { RouteState } from '../utils/router'
 import type { SpeechRateMode } from '../utils/storage'
+import { AIBuddyPanel } from './AIBuddyPanel'
 import { LessonActivity } from './LessonActivity'
 
 interface LessonPageProps {
@@ -24,9 +27,24 @@ interface LessonPageProps {
   prevLesson: LessonLocation | null
   nextLesson: LessonLocation | null
   isCompleted: boolean
+  isStarted: boolean
+  initialStep: number
   speechRate: SpeechRateMode
+  activeChild: ChildProfile | null
+  hasAiConsent: boolean
+  isAuthenticated: boolean
   onChangeSpeechRate: (mode: SpeechRateMode) => void
-  onCompleteLesson: (lessonId: string) => void
+  onSaveProgressStep: (
+    lessonId: string,
+    step: number,
+    elapsedSeconds: number
+  ) => void
+  onRecordAttempt: (
+    lessonId: string,
+    activityKind: string,
+    durationSeconds: number
+  ) => void
+  onCompleteLesson: (lessonId: string, elapsedSeconds: number) => void
   onNavigate: (route: RouteState) => void
 }
 
@@ -40,6 +58,8 @@ function Soundwave() {
   )
 }
 
+const STEP_LABELS = ['Từ vựng', 'Hoạt động', 'Thử nói', 'AI Buddy']
+
 export function LessonPage({
   level,
   unit,
@@ -47,12 +67,23 @@ export function LessonPage({
   prevLesson,
   nextLesson,
   isCompleted,
+  isStarted,
+  initialStep,
   speechRate,
+  activeChild,
+  hasAiConsent,
+  isAuthenticated,
   onChangeSpeechRate,
+  onSaveProgressStep,
+  onRecordAttempt,
   onCompleteLesson,
   onNavigate,
 }: LessonPageProps) {
   const [completionBanner, setCompletionBanner] = useState('')
+  const [currentStep, setCurrentStep] = useState(initialStep)
+  const lessonStartMsRef = useRef<number>(Date.now())
+  const activitySectionRef = useRef<HTMLDivElement | null>(null)
+
   const {
     activeAudioId,
     listening,
@@ -72,14 +103,40 @@ export function LessonPage({
     stopAll()
     resetTranscript()
     setCompletionBanner('')
-  }, [lesson.id, stopAll, resetTranscript])
+    setCurrentStep(initialStep)
+    lessonStartMsRef.current = Date.now()
+  }, [lesson.id, initialStep, stopAll, resetTranscript])
+
+  const getElapsedSeconds = () =>
+    Math.max(1, Math.round((Date.now() - lessonStartMsRef.current) / 1000))
+
+  // Persist midpoint state automatically when leaving/unmounting mid-lesson
+  useEffect(() => {
+    return () => {
+      if (!isCompleted && currentStep > 0) {
+        onSaveProgressStep(lesson.id, currentStep, getElapsedSeconds())
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lesson.id, isCompleted, currentStep])
+
+  const advanceStep = (nextStep: number) => {
+    const clamped = Math.max(currentStep, nextStep)
+    setCurrentStep(clamped)
+    onSaveProgressStep(lesson.id, clamped, getElapsedSeconds())
+  }
 
   const handleFinish = () => {
-    onCompleteLesson(lesson.id)
+    onCompleteLesson(lesson.id, getElapsedSeconds())
+    setCurrentStep(4)
     setCompletionBanner(
       'Tuyệt vời! Bài học đã được đánh dấu hoàn thành. Hãy khen bé vì đã cố gắng nhé!'
     )
   }
+
+  const progressPct = isCompleted
+    ? 100
+    : Math.min(92, Math.max(20, (currentStep + 1) * 20))
 
   return (
     <main className="content-page lesson-page">
@@ -123,6 +180,7 @@ export function LessonPage({
 
       <div className="lesson-top">
         <p className="eyebrow">
+          {activeChild ? `${activeChild.avatarEmoji} ${activeChild.nickname} · ` : ''}
           {level.name} · {level.age} · {unit.title}
         </p>
         <h1 lang="en">{lesson.title}</h1>
@@ -132,16 +190,60 @@ export function LessonPage({
           <span aria-hidden="true">·</span>
           <span>{lesson.words.length} từ trọng tâm</span>
           <span aria-hidden="true">·</span>
-          <span>{isCompleted ? 'Đã hoàn thành' : 'Đang học'}</span>
+          <span>
+            {isCompleted
+              ? 'Đã hoàn thành'
+              : isStarted
+                ? `Đang học (Bước ${Math.min(4, currentStep + 1)}/4)`
+                : 'Chưa bắt đầu'}
+          </span>
         </div>
+
+        <div className="lesson-player-controls">
+          <button
+            type="button"
+            className="primary compact"
+            onClick={() => {
+              const firstWord = lesson.words[0]
+              if (firstWord) {
+                speak(
+                  firstWord.word,
+                  speechRate,
+                  `word-${speechRate}-${lesson.id}-${firstWord.word}`,
+                  firstWord.audioUrl
+                )
+              }
+              advanceStep(Math.max(1, currentStep))
+            }}
+          >
+            <Play size={16} aria-hidden="true" />
+            <span>
+              {isStarted && !isCompleted
+                ? 'Tiếp tục bài học'
+                : 'Bắt đầu bài học'}
+            </span>
+          </button>
+
+          <div className="step-pills" aria-label="Tiến trình các bước trong bài">
+            {STEP_LABELS.map((label, idx) => (
+              <span
+                key={label}
+                className={`step-pill ${currentStep >= idx ? 'is-active' : ''}`}
+              >
+                {idx + 1}. {label}
+              </span>
+            ))}
+          </div>
+        </div>
+
         <div
           className="progress-track"
           role="progressbar"
-          aria-valuenow={isCompleted ? 100 : 35}
+          aria-valuenow={progressPct}
           aria-valuemin={0}
           aria-valuemax={100}
         >
-          <span style={{ width: `${isCompleted ? 100 : 35}%` }} />
+          <span style={{ width: `${progressPct}%` }} />
         </div>
       </div>
 
@@ -204,9 +306,10 @@ export function LessonPage({
                     lang="en"
                     aria-label={`Listen to ${item.word}`}
                     className="word-card-face"
-                    onClick={() =>
+                    onClick={() => {
                       speak(item.word, 'normal', normalId, item.audioUrl)
-                    }
+                      advanceStep(1)
+                    }}
                   >
                     <span className="word-emoji" aria-hidden="true">
                       {item.emoji}
@@ -225,9 +328,10 @@ export function LessonPage({
                       className={`audio-pill-btn ${
                         isNormalPlaying ? 'is-speaking' : ''
                       }`}
-                      onClick={() =>
+                      onClick={() => {
                         speak(item.word, 'normal', normalId, item.audioUrl)
-                      }
+                        advanceStep(1)
+                      }}
                     >
                       <Volume2 size={20} aria-hidden="true" />
                       <span lang="vi">
@@ -243,9 +347,10 @@ export function LessonPage({
                       className={`audio-pill-btn slow ${
                         isSlowPlaying ? 'is-speaking' : ''
                       }`}
-                      onClick={() =>
+                      onClick={() => {
                         speak(item.word, 'slow', slowId, item.audioUrl)
-                      }
+                        advanceStep(1)
+                      }}
                     >
                       <span className="turtle-icon" aria-hidden="true">🐢</span>
                       <span lang="vi">
@@ -279,9 +384,10 @@ export function LessonPage({
                       lang="en"
                       aria-label={`Listen to ${phrase.en}`}
                       className="phrase-text-btn"
-                      onClick={() =>
+                      onClick={() => {
                         speak(phrase.en, 'normal', normalId, phrase.audioUrl)
-                      }
+                        advanceStep(1)
+                      }}
                     >
                       <strong lang="en">{phrase.en}</strong>
                       <small lang="vi">{phrase.vi}</small>
@@ -295,9 +401,10 @@ export function LessonPage({
                         className={`audio-pill-btn ${
                           isNormalPlaying ? 'is-speaking' : ''
                         }`}
-                        onClick={() =>
+                        onClick={() => {
                           speak(phrase.en, 'normal', normalId, phrase.audioUrl)
-                        }
+                          advanceStep(1)
+                        }}
                       >
                         <Volume2 size={20} aria-hidden="true" />
                         <span lang="vi">
@@ -313,9 +420,10 @@ export function LessonPage({
                         className={`audio-pill-btn slow ${
                           isSlowPlaying ? 'is-speaking' : ''
                         }`}
-                        onClick={() =>
+                        onClick={() => {
                           speak(phrase.en, 'slow', slowId, phrase.audioUrl)
-                        }
+                          advanceStep(1)
+                        }}
                       >
                         <span className="turtle-icon" aria-hidden="true">🐢</span>
                         <span lang="vi">
@@ -330,13 +438,23 @@ export function LessonPage({
             </div>
           </div>
 
-          <LessonActivity
-            lessonId={lesson.id}
-            config={lesson.activityConfig}
-            activeAudioId={activeAudioId}
-            onSpeak={speak}
-            onSpeakSequence={speakSequence}
-          />
+          <div ref={activitySectionRef}>
+            <LessonActivity
+              lessonId={lesson.id}
+              config={lesson.activityConfig}
+              activeAudioId={activeAudioId}
+              onSpeak={speak}
+              onSpeakSequence={speakSequence}
+              onActivityCompleted={() => {
+                advanceStep(2)
+                onRecordAttempt(
+                  lesson.id,
+                  lesson.activityConfig.kind,
+                  getElapsedSeconds()
+                )
+              }}
+            />
+          </div>
 
           <div className="practice-box">
             <div>
@@ -351,7 +469,10 @@ export function LessonPage({
             <button
               type="button"
               className={`mic-button ${listening ? 'listening' : ''}`}
-              onClick={startMic}
+              onClick={() => {
+                startMic()
+                advanceStep(3)
+              }}
               aria-pressed={listening}
             >
               {micSupported ? (
@@ -375,6 +496,15 @@ export function LessonPage({
               {speechNotice}
             </div>
           )}
+
+          <AIBuddyPanel
+            level={level}
+            lesson={lesson}
+            activeChild={activeChild}
+            hasAiConsent={hasAiConsent}
+            isAuthenticated={isAuthenticated}
+            onNavigate={onNavigate}
+          />
 
           {completionBanner && (
             <div className="feedback success-banner" role="status">

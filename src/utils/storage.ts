@@ -7,8 +7,11 @@ export interface HistoryEntry {
 
 export interface LocalProgressState {
   completedIds: string[]
+  startedIds: string[]
+  lessonSteps: Record<string, number>
   history: HistoryEntry[]
   lastLessonId: string | null
+  activeChildId: string | null
   speechRate: SpeechRateMode
 }
 
@@ -16,8 +19,11 @@ const STORAGE_KEY = 'elw_mvp_progress_v1'
 
 const defaultState: LocalProgressState = {
   completedIds: [],
+  startedIds: [],
+  lessonSteps: {},
   history: [],
   lastLessonId: null,
+  activeChildId: null,
   speechRate: 'normal',
 }
 
@@ -28,9 +34,16 @@ export function loadLocalProgress(): LocalProgressState {
     const parsed = JSON.parse(raw) as Partial<LocalProgressState>
     return {
       completedIds: Array.isArray(parsed.completedIds) ? parsed.completedIds : [],
+      startedIds: Array.isArray(parsed.startedIds) ? parsed.startedIds : [],
+      lessonSteps:
+        parsed.lessonSteps && typeof parsed.lessonSteps === 'object'
+          ? parsed.lessonSteps
+          : {},
       history: Array.isArray(parsed.history) ? parsed.history : [],
       lastLessonId:
         typeof parsed.lastLessonId === 'string' ? parsed.lastLessonId : null,
+      activeChildId:
+        typeof parsed.activeChildId === 'string' ? parsed.activeChildId : null,
       speechRate: parsed.speechRate === 'slow' ? 'slow' : 'normal',
     }
   } catch {

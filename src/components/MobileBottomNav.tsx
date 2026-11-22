@@ -45,7 +45,7 @@ export function MobileBottomNav({
       </button>
       <button
         type="button"
-        className={currentPage === 'parent' ? 'active' : ''}
+        className={currentPage === 'parent' || currentPage === 'admin' ? 'active' : ''}
         aria-current={currentPage === 'parent' ? 'page' : undefined}
         onClick={() => onNavigate({ page: 'parent' })}
       >

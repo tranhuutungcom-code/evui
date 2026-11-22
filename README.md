@@ -1,51 +1,73 @@
-# ENGLISH LITTLE WORLD — MVP starter
+# ENGLISH LITTLE WORLD — V2 Platform
 
-Bộ khởi tạo website học tiếng Anh cho trẻ 3–11 tuổi. Đây là **MVP kỹ thuật và nội dung mẫu**, không phải sản phẩm đã được kiểm định sư phạm/pháp lý hoặc nền tảng production.
+Nền tảng học tiếng Anh trực tuyến cho trẻ 3–11 tuổi (**Learn • Play • Speak • Grow**), kế thừa và nâng cấp trực tiếp từ mã nguồn V1 trên React + TypeScript + Vite + Vercel Serverless Functions + Supabase + Gemini AI + MoMo.
 
-## 1. Công nghệ
-- React + TypeScript + Vite
-- Responsive CSS, Lucide icons
-- Supabase (schema khởi tạo trong `supabase/migrations`)
-- Web Speech API để thử phát âm/nhận diện giọng nói trên trình duyệt tương thích
+---
 
-## 2. Chạy thử tại máy
-1. Cài Node.js bản LTS.
-2. Giải nén thư mục.
-3. Mở terminal tại thư mục dự án, chạy:
-   ```bash
-   npm install
-   npm run dev
-   ```
-4. Mở URL Vite hiển thị trong terminal.
+## 1. Kiến trúc hệ thống (Kế thừa V1 → V2)
 
-## 3. Đưa lên Lovable
-Lovable phù hợp để tiếp tục dựng giao diện, kết nối Supabase và bổ sung chức năng. Có thể đưa mã nguồn vào GitHub rồi import repository trong Lovable. Nếu dùng prompt trong Lovable, yêu cầu giữ React + TypeScript, giữ cấu trúc nội dung và không tự ý tạo chức năng AI giả.
+- **Frontend SPA**: React 18 + TypeScript + Vite + PWA (`/logo-evui.png`, `manifest.json`, `sw.js`) + iOS Safari Web Speech API (`src/utils/speech.ts`).
+- **Backend Proxy Serverless (Vercel `/api/*` + `server.ts` cho môi trường dev)**:
+  - `POST /api/ai/buddy`: Trợ lý AI English Buddy (Text + Audio) dùng `@google/genai` (`gemini-4-hydrogen`, `gemini-3.5-transcribe`, `gemini-3.8-flash-lite-tts`), khóa chủ đề theo bài học, chặn thông tin cá nhân (PII), kiểm tra quyền phụ huynh & giới hạn lượt/ngày.
+  - `POST /api/ai/pronunciation`: Phân tích phát âm theo hướng động viên (không bịa đặt điểm số khoa học/CEFR), lưu metadata tham khảo (không lưu tệp ghi âm của trẻ).
+  - `POST /api/momo/create-payment`, `POST /api/momo/ipn`, `GET /api/momo/status`: Tích hợp MoMo API v2 ký HMAC-SHA256, xác thực IPN chống trùng lặp (`order_id` unique) và chỉ kích hoạt gói sau xác thực phía server.
+- **Database & RLS (Supabase)**:
+  - `supabase/migrations/001_initial_schema.sql`
+  - `supabase/migrations/002_v2_platform_schema.sql`
+  - `supabase/migrations/003_seed_plans_and_courses.sql`
 
-Prompt gợi ý:
-> Tiếp tục phát triển dự án English Little World từ mã nguồn hiện tại. Giữ React + TypeScript + Vite. Kết nối Supabase theo schema hiện có. Xây dựng đăng ký/đăng nhập phụ huynh, tạo hồ sơ trẻ, lưu tiến độ bài học theo child_id, trang quản trị nội dung có phân quyền. Bắt buộc bật và kiểm thử RLS. Không đưa service role key hoặc khóa AI vào frontend. Không lưu bản ghi giọng nói trẻ nếu chưa có đồng ý rõ ràng của phụ huynh. Tách nội dung bài học khỏi giao diện để có thể mở rộng lên 320 bài.
+---
 
-## 4. Kết nối Supabase
-1. Tạo project Supabase.
-2. Chạy file `supabase/migrations/001_initial_schema.sql` trong SQL Editor.
-3. Tạo `.env` từ `.env.example`, điền Project URL và anon key.
-4. Lưu ý: bản giao diện hiện tại vẫn chạy bằng dữ liệu mẫu trong `src/data.ts`. Cần phát triển lớp repository/API để đọc và ghi dữ liệu Supabase; schema SQL không tự động kết nối UI.
+## 2. Biến môi trường cần cấu hình (Trên Vercel & `.env.local`)
 
-## 5. Phạm vi hiện tại
-- Trang chủ, giới thiệu phương pháp và bốn cấp độ.
-- Danh sách bài mẫu: 4 bài/cấp độ (16 bài mẫu).
-- Màn hình bài học: phát âm mẫu bằng SpeechSynthesis, nút nhận diện giọng nói nếu browser hỗ trợ, đánh dấu hoàn thành trong state của phiên.
-- Trang phụ huynh: thống kê demo trên thiết bị/phiên hiện tại.
-- SQL khởi tạo cho phụ huynh, trẻ, bài học, tiến độ và consent.
+> Lưu ý: Không đưa bất kỳ khóa bí mật (`GEMINI_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `MOMO_SECRET_KEY`) nào vào mã frontend hoặc biến có tiền tố `VITE_`. Giữ nguyên các biến vận hành GitHub/Facebook hiện có trên Vercel.
 
-## 6. Chưa có — cần làm trước khi thương mại hóa
-- Đăng ký/đăng nhập, xác minh email, quên mật khẩu.
-- Lưu tiến độ thực tế vào Supabase; đồng bộ nhiều thiết bị.
-- CMS/admin hoàn chỉnh, upload ảnh/audio, quy trình biên tập và duyệt bài.
-- AI hội thoại có kiểm soát, proxy backend/Edge Function và giới hạn chi phí.
-- Chấm phát âm có căn cứ sư phạm. Web Speech API chỉ cho transcript tham khảo, không phải thang điểm phát âm đáng tin cậy.
-- Thanh toán, gói miễn phí/trả phí, hóa đơn và quản lý thuê bao.
-- Kiểm thử bảo mật, accessibility, hiệu năng, backup, monitoring.
-- Rà soát pháp lý tại Việt Nam về dữ liệu cá nhân và dữ liệu trẻ em, cơ chế đồng ý của cha mẹ/người giám hộ, chính sách lưu/xóa dữ liệu.
+| Biến | Phạm vi | Mục đích |
+|---|---|---|
+| `VITE_SUPABASE_URL` | Frontend | URL dự án Supabase |
+| `VITE_SUPABASE_ANON_KEY` | Frontend | Supabase Anon public key |
+| `SUPABASE_URL` | Server (`/api/*`) | URL dự án Supabase |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server (`/api/*`) | Service role key để xác thực JWT/AI quota/IPN MoMo |
+| `GEMINI_API_KEY` | Server (`/api/*`) | Khóa Gemini API |
+| `MOMO_PARTNER_CODE` | Server (`/api/*`) | Mã đối tác MoMo merchant |
+| `MOMO_ACCESS_KEY` | Server (`/api/*`) | Access key MoMo |
+| `MOMO_SECRET_KEY` | Server (`/api/*`) | Secret key ký HMAC-SHA256 |
+| `MOMO_ENDPOINT` | Server (`/api/*`) | Endpoint tạo thanh toán MoMo (sandbox/prod) |
+| `MOMO_QUERY_ENDPOINT` | Server (`/api/*`) | Endpoint truy vấn trạng thái MoMo |
+| `MOMO_RECURRING_APPROVED` | Server (`/api/*`) | Đặt `true` CHỈ khi MoMo đã cấp quyền Subscription API định kỳ; mặc định `false` (gia hạn thủ công) |
+| `APP_BASE_URL` | Server (`/api/*`) | Domain chính thức (vd: `https://evui.tranhuutung.com`) |
 
-## 7. Nguyên tắc nội dung
-Mục tiêu tuổi là định hướng, không phải cam kết đầu ra. Nên có bài kiểm tra đầu vào nhẹ, lộ trình linh hoạt, giáo viên/biên tập viên tiếng Anh duyệt nội dung và thử nghiệm với trẻ thật trước khi phát hành.
+---
+
+## 3. Hướng dẫn cấu hình nhanh
+
+### A. Supabase
+1. Mở **SQL Editor** trên Supabase Dashboard.
+2. Chạy lần lượt 3 file trong `supabase/migrations/`:
+   - `001_initial_schema.sql`
+   - `002_v2_platform_schema.sql`
+   - `003_seed_plans_and_courses.sql`
+3. Trong **Authentication → URL Configuration**, thêm Redirect URL: `https://<domain-cua-ban>/#/phu-huynh`.
+4. Để cấp quyền biên tập CMS (`#/quan-tri`) cho tài khoản quản trị: cập nhật cột `role = 'admin'` cho dòng tương ứng trong bảng `public.parent_profiles` trực tiếp trên Supabase Table Editor. Sau đó đăng nhập và bấm **"Đồng bộ khung 320 bài lên Supabase"** trong trang Quản trị.
+
+### B. Gemini API & MoMo
+1. Thêm `GEMINI_API_KEY` trong Vercel → **Settings → Environment Variables**.
+2. Đăng ký tài khoản MoMo Business / Test Sandbox, lấy `MOMO_PARTNER_CODE`, `MOMO_ACCESS_KEY`, `MOMO_SECRET_KEY`.
+3. Cấu hình IPN URL: `https://<domain-cua-ban>/api/momo/ipn`.
+4. Khi chưa được MoMo phê duyệt Recurring/Subscription API, giữ `MOMO_RECURRING_APPROVED=false` để vận hành theo phương thức gia hạn thủ công minh bạch.
+
+### C. Deploy trên Vercel
+1. Đẩy mã nguồn lên GitHub (`tranhuutungcom-code/evui`).
+2. Vercel tự động chạy `npm run build` (`tsc -b && vite build`) để xuất `dist/` và triển khai toàn bộ thư mục `/api/*.ts` thành Vercel Serverless Functions.
+3. Không sửa đổi hoặc xóa các biến `GITHUB_TOKEN`, `GITHUB_OWNER`, `GITHUB_REPO`, `GITHUB_BRANCH` và các biến cấu hình Facebook đang hoạt động trên Vercel.
+
+---
+
+## 4. Chạy thử tại máy
+
+```bash
+npm install
+npm run dev
+```
+
+Ứng dụng chạy cả Vite frontend và API routes trên cổng `3000`.
